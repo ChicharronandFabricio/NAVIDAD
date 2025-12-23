@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Poema</title>
+
+  <style>
+    :root{
+      --bg:#8e3d9b;
+
+      --cell:#ffffff;
+      --cellBorder:#111;
+      --glow:rgba(255,255,255,.55);
+
+      --paper1:#fff7ea;
+      --paper2:#f0e1c4;
+      --paper3:#e7d1ab;
+      --ink:#2b1f14;
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      min-height:100vh;
+      background:var(--bg);
+      font-family: Arial, Helvetica, sans-serif;
+      overflow-x:hidden;
+    }
+
+    .backBtn{
+      position:fixed;
+      left:18px; top:18px;
+      padding:10px 14px;
+      border-radius:999px;
+      background: rgba(255,255,255,.18);
+      border: 2px solid rgba(255,255,255,.35);
+      color:#fff;
+      text-decoration:none;
+      font-weight:800;
+      backdrop-filter: blur(6px);
+      z-index:50;
+    }
+    .backBtn:hover{ background: rgba(255,255,255,.25); }
+
+    .wrap{
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      padding: 26px 16px;
+    }
+
+    .card{
+      width: min(980px, 96vw);
+      border-radius: 26px;
+      background: rgba(255,255,255,.10);
+      box-shadow:
+        0 0 0 6px rgba(255,255,255,.18),
+        0 0 34px var(--glow),
+        0 22px 45px rgba(0,0,0,.25);
+      padding: 18px;
+      position:relative;
+    }
+
+    .mini{
+      color:#fff;
+      text-align:center;
+      font-weight:900;
+      letter-spacing:.2px;
+      margin: 2px 0 14px;
+      text-shadow: 0 8px 18px rgba(0,0,0,.25);
+    }
+
+    /* ====== Modal intro ====== */
+    .overlay{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.35);
+      display:grid;
+      place-items:center;
+      z-index:999;
+      padding:18px;
+    }
+    .modal{
+      width:min(720px, 95vw);
+      background: rgba(255,255,255,.14);
+      border: 2px solid rgba(255,255,255,.28);
+      border-radius: 22px;
+      box-shadow: 0 0 40px rgba(255,255,255,.18), 0 20px 60px rgba(0,0,0,.35);
+      padding: 18px;
+      backdrop-filter: blur(8px);
+      color:#fff;
+      text-align:center;
+    }
+    .modal h2{
+      font-size: 22px;
+      margin-bottom: 8px;
+      font-weight: 900;
+    }
+    .modal p{
+      font-size: 16px;
+      line-height: 1.55;
+      opacity:.96;
+      margin: 0 auto 14px;
+      max-width: 56ch;
+      font-weight: 700;
+    }
+    .modal button{
+      cursor:pointer;
+      border:0;
+      padding: 12px 18px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.92);
+      color:#2b1f14;
+      font-weight: 900;
+      box-shadow: 0 10px 22px rgba(0,0,0,.25);
+    }
+    .modal button:hover{ transform: translateY(-1px); }
+
+    /* ===== Crucigrama ===== */
+    .crosswordWrap{
+      display:none; /* se muestra tras el modal */
+      place-items:center;
+      gap: 12px;
+      transition: opacity .35s ease, transform .35s ease;
+    }
+
+    .board{
+      width:min(700px, 95vw);
+      border-radius: 22px;
+      padding: 14px;
+      background: rgba(255,255,255,.08);
+      border: 2px solid rgba(255,255,255,.22);
+      box-shadow: 0 18px 40px rgba(0,0,0,.22);
+    }
+
+    .grid{
+      width:100%;
+      aspect-ratio: 1 / 1;
+      display:grid;
+      grid-template-columns: repeat(15, 1fr);
+      gap: 6px;
+    }
+
+    .cell{
+      position:relative;
+      border-radius: 8px;
+      background: var(--cell);
+      border: 2px solid var(--cellBorder);
+      overflow:hidden;
+      display:grid;
+      place-items:center;
+      box-shadow: 0 6px 14px rgba(0,0,0,.10);
+    }
+
+    .cell.block{
+      background: transparent;
+      border-color: transparent;
+      box-shadow:none;
+    }
+
+    .num{
+      position:absolute;
+      left:4px;
+      top:3px;
+      font-size: 10px;
+      font-weight: 900;
+      color:#111;
+      opacity:.85;
+      pointer-events:none;
+      user-select:none;
+    }
+
+    .cell input{
+      width:100%;
+      height:100%;
+      border:0;
+      outline:0;
+      background:transparent;
+      text-align:center;
+      font-weight:900;
+      font-size: 18px;
+      color:#111;
+      text-transform: uppercase;
+      caret-color:#111;
+    }
+
+    .cell.correct{ background: rgba(170, 255, 200, .75); }
+    .cell.wrong{ background: rgba(255, 170, 170, .75); }
+
+    .status{
+      color: rgba(255,255,255,.95);
+      text-align:center;
+      font-weight:800;
+      margin-top: 2px;
+      text-shadow: 0 8px 18px rgba(0,0,0,.22);
+    }
+
+    .clues{
+      width: min(700px, 95vw);
+      margin-top: 4px;
+      padding: 14px;
+      border-radius: 18px;
+      border: 2px solid rgba(255,255,255,.22);
+      background: rgba(255,255,255,.10);
+      color:#fff;
+      line-height: 1.55;
+    }
+    .clues .line{ margin: 6px 0; font-weight: 800; }
+    .clues .hint{ font-weight: 600; opacity: .95; }
+
+    /* ===== Reveal poema ===== */
+    .reveal{
+      display:none;
+      margin-top: 16px;
+      animation: fadeIn .45s ease-out;
+    }
+    @keyframes fadeIn{
+      from{ opacity:0; transform: translateY(8px); }
+      to{ opacity:1; transform: translateY(0); }
+    }
+
+    .revealRow{
+      width: min(980px, 96vw);
+      display:grid;
+      grid-template-columns: 170px 1fr;
+      gap: 18px;
+      align-items:center;
+      margin: 0 auto;
+    }
+
+    .tulip{
+      width:170px;
+      height:420px;
+      margin: 0 auto;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:flex-end;
+      filter: drop-shadow(0 0 20px rgba(255,255,255,.22));
+    }
+    .flower{
+      width:120px;
+      height:110px;
+      background:#7a1fa2;
+      border-radius:0 0 60px 60px;
+      position:relative;
+      box-shadow:0 0 26px rgba(255,255,255,.35);
+    }
+    .flower:before,.flower:after{
+      content:"";
+      position:absolute;
+      width:62px;
+      height:86px;
+      background:#8e24aa;
+      top:-50px;
+      border-radius:60px 60px 0 0;
+    }
+    .flower:before{ left:0; }
+    .flower:after{ right:0; }
+
+    .stem{
+      width:12px;
+      height:260px;
+      background:#2e7d32;
+      border-radius:9px;
+      position:relative;
+    }
+    .leaf{
+      position:absolute;
+      width:110px;
+      height:44px;
+      background:#388e3c;
+      border-radius:60px 0 60px 0;
+      opacity:.95;
+    }
+    .leaf.l1{ left:-92px; top:85px; transform: rotate(-20deg); }
+    .leaf.l2{ right:-92px; top:145px; transform: rotate(20deg); }
+
+    .paperCard{
+      border-radius: 22px;
+      border: 3px solid rgba(0,0,0,.18);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(0,0,0,.03), transparent 45%),
+        radial-gradient(circle at 80% 30%, rgba(0,0,0,.035), transparent 50%),
+        radial-gradient(circle at 30% 80%, rgba(0,0,0,.03), transparent 45%),
+        linear-gradient(180deg, var(--paper1), var(--paper2) 55%, var(--paper3));
+      box-shadow:
+        0 0 0 6px rgba(255,255,255,.12),
+        0 20px 55px rgba(0,0,0,.28);
+      padding: 26px;
+      position:relative;
+      overflow:hidden;
+    }
+    .paperCard .frame{
+      position:absolute;
+      inset:16px;
+      border-radius: 18px;
+      border: 2px solid rgba(120,70,40,.18);
+      pointer-events:none;
+    }
+    .poemText{
+      position:relative;
+      color: var(--ink);
+      line-height: 1.75;
+      font-size: 18px;
+      white-space: pre-line;
+      font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      text-shadow: 0 1px 0 rgba(255,255,255,.35);
+    }
+
+    .fadeOut{
+      opacity:0;
+      transform: translateY(-6px);
+      pointer-events:none;
+    }
+
+    @media (max-width: 720px){
+      .grid{ gap:4px; }
+      .cell input{ font-size: 14px; }
+      .num{ font-size: 9px; }
+    }
+    @media (max-width: 860px){
+      .revealRow{ grid-template-columns: 1fr; }
+      .tulip{ height: 360px; }
+    }
+  </style>
+</head>
+
+<body>
+  <a class="backBtn" href="index.html">⬅ Volver</a>
+
+  <!-- MODAL INTRO -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h2>Antes del poema… un pequeño juego </h2>
+      <p>
+        Antes del poema, un pequeño juego que me costó hacer (literal JAJA) 
+        <br>
+        Es sobre información de ti, no muy difícil, pero que conozco de ti 
+      </p>
+      <button id="startBtn">Empezar</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="mini">Resuelve el crucigrama y aparece el poema ✨</div>
+
+      <div class="crosswordWrap" id="crosswrap">
+        <div class="board">
+          <div class="grid" id="grid"></div>
+        </div>
+
+        <div class="status" id="status">Correctas: <b id="ok">0</b> / <b id="tot">?</b></div>
+
+        <div class="clues">
+          <div class="line">1. <span class="hint">Color favorito</span></div>
+          <div class="line">2. <span class="hint">Personaje favorito de chiikawa</span></div>
+          <div class="line">3. <span class="hint">Personaje que más odias</span></div>
+          <div class="line">4. <span class="hint">Edad que tienes (sin mentir)</span></div>
+          <div class="line">5. <span class="hint">Mes que cumples años</span></div>
+          <div class="line">6. <span class="hint">Sabor que te gusta más</span></div>
+          <div class="line">7. <span class="hint">¿Quién es tu mejor maestro?</span></div>
+        </div>
+      </div>
+
+      <div class="reveal" id="reveal">
+        <div class="revealRow">
+          <div class="tulip" aria-hidden="true">
+            <div class="flower"></div>
+            <div class="stem">
+              <div class="leaf l1"></div>
+              <div class="leaf l2"></div>
+            </div>
+          </div>
+
+          <div class="paperCard">
+            <div class="frame"></div>
+            <div class="poemText">
+Este año empezó como empiezan muchos,
+sin saber que en el camino iba a aparecer alguien especial.
+La primera vez que te conocí, sin pensarlo mucho,
+te convertiste en mi primera amiga,
+y desde ahí todo fluyó natural.
+
+La amistad llegó rápido,
+la confianza también,
+y sin darnos cuenta ya nos estábamos bromeando
+como si nos conociéramos de toda la vida.
+
+Entre risas, chistes y momentos simples,
+fuiste demostrando lo que eres:
+bonita sin intentarlo,
+graciosa sin proponérselo,
+y con una energía que alegra incluso los días pesados.
+
+El año no fue perfecto,
+hubo cansancio, estrés y materias difíciles…
+ejem Física 2.
+Tres veces quiso quedarse,
+pero al final, como todo lo que se insiste con ganas,
+la aprobaste (BRAVOOOO)
+
+Este año dejó recuerdos, aprendizajes y momentos
+que valen la pena guardar.
+Y entre todo eso,
+me quedo con la amistad que nació sin esfuerzo
+y se quedó con el tiempo.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ===== Modal =====
+    const overlay = document.getElementById("overlay");
+    const startBtn = document.getElementById("startBtn");
+    const crossWrap = document.getElementById("crosswrap");
+
+    startBtn.addEventListener("click", () => {
+      overlay.style.display = "none";
+      crossWrap.style.display = "grid";
+      // enfocar primer input disponible
+      setTimeout(() => {
+        const first = document.querySelector(".cell input");
+        if(first) first.focus();
+      }, 100);
+    });
+
+    // ===== CRUCIGRAMA 15x15 =====
+    // Respuestas ocultas:
+    // 1 VIOLETA
+    // 2 USAGI (ARREGLADO SIN CUADRO EXTRA)
+    // 3 RAMONA
+    // 4 VEINTE
+    // 5 AGOSTO
+    // 6 DULCE
+    // 7 CHICHARRON
+
+     const solution = {
+      // 7) CHICHARRON (fila 7, col 2) horizontal
+      "7,2":"C","7,3":"H","7,4":"I","7,5":"C","7,6":"H","7,7":"A","7,8":"R","7,9":"R","7,10":"O","7,11":"N",
+
+      // 1) VIOLETA (col 4) vertical, cruza con CHICHARRON en la I (7,4)
+      "6,4":"V","7,4":"I","8,4":"O","9,4":"L","10,4":"E","11,4":"T","12,4":"A",
+
+      // 2) USAGI vertical, cruza con CHICHARRON en la A (7,7)
+      "5,7":"U","6,7":"S","7,7":"A","8,7":"G","9,7":"I",
+
+      // 5) AGOSTO horizontal, cruza con USAGI en la G (8,7)
+      "8,6":"A","8,7":"G","8,8":"O","8,9":"S","8,10":"T","8,11":"O",
+
+      // 3) RAMONA horizontal, cruza con VIOLETA en la O (8,4) y con AGOSTO en la A (8,6)
+      "8,1":"R","8,2":"A","8,3":"M","8,4":"O","8,5":"N","8,6":"A",
+
+      // 6) DULCE horizontal, cruza con VIOLETA en la L (9,4)
+      "9,2":"D","9,3":"U","9,4":"L","9,5":"C","9,6":"E",
+
+      // 4) VEINTE horizontal, cruza con VIOLETA en la E (10,4)
+      "10,3":"V","10,4":"E","10,5":"I","10,6":"N","10,7":"T","10,8":"E",
+    };
+
+    // Numeritos (en la celda donde empieza cada respuesta)
+    const numbers = {
+      "6,4": 1,   // VIOLETA
+      "5,7": 2,   // USAGI
+      "8,1": 3,   // RAMONA
+      "10,3": 4,  // VEINTE
+      "8,6": 5,   // AGOSTO
+      "9,2": 6,   // DULCE
+      "7,2": 7    // CHICHARRON
+    };
+
+    const ROWS = 15, COLS = 15;
+    const gridEl = document.getElementById("grid");
+    const okEl = document.getElementById("ok");
+    const totEl = document.getElementById("tot");
+    const statusEl = document.getElementById("status");
+    const revealEl = document.getElementById("reveal");
+
+    const totalCells = Object.keys(solution).length;
+    totEl.textContent = totalCells;
+
+    const inputs = {};
+
+    // construir tablero
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const key = `${r},${c}`;
+        const cell = document.createElement("div");
+        cell.className = "cell";
+
+        if(solution[key]){
+          if(numbers[key]){
+            const n = document.createElement("div");
+            n.className = "num";
+            n.textContent = numbers[key];
+            cell.appendChild(n);
+          }
+
+          const input = document.createElement("input");
+          input.maxLength = 1;
+          input.autocomplete = "off";
+          input.spellcheck = false;
+
+          input.addEventListener("input", () => {
+            input.value = input.value.toUpperCase().replace(/[^A-ZÑ]/g,'');
+            checkAll();
+          });
+
+          cell.appendChild(input);
+          inputs[key] = input;
+        }else{
+          cell.classList.add("block");
+        }
+
+        gridEl.appendChild(cell);
+      }
+    }
+
+    function checkAll(){
+      let ok = 0;
+
+      Object.keys(solution).forEach(key => {
+        const input = inputs[key];
+        const cell = input.parentElement;
+        const expected = solution[key];
+
+        cell.classList.remove("correct","wrong");
+
+        const v = (input.value || "").toUpperCase();
+        if(v.length === 0) return;
+
+        if(v === expected){
+          ok++;
+          cell.classList.add("correct");
+        }else{
+          cell.classList.add("wrong");
+        }
+      });
+
+      okEl.textContent = ok;
+
+      if(ok === totalCells && allFilled()){
+        statusEl.innerHTML = "✨ Listo ✨";
+        crossWrap.classList.add("fadeOut");
+
+        setTimeout(() => {
+          revealEl.style.display = "block";
+          revealEl.scrollIntoView({behavior:"smooth", block:"center"});
+        }, 400);
+      }
+    }
+
+    function allFilled(){
+      return Object.keys(solution).every(key => (inputs[key].value || "").length === 1);
+    }
+  </script>
+</body>
+</html>
